@@ -736,20 +736,16 @@ class _SemarAIChatState extends State<SemarAIChat> {
   bool _isLoading = false;
   final ScrollController _scrollController = ScrollController();
 
-  // Ganti dengan API Key OpenAI kamu
-  static const String openAIKey = 'YOUR_OPENAI_API_KEY_HERE';
-
   @override
   void initState() {
     super.initState();
     _messages.add(ChatMessage(
-      text:
-          "Halo! Saya Semar AI, asisten virtual untuk informasi tentang kota Semarang. Ada yang bisa saya bantu?",
+      text: "Halo! Saya Semar AI, asisten virtual untuk informasi tentang kota Semarang. Ada yang bisa saya bantu?",
       isUser: false,
     ));
   }
 
-  Future<void> sendToOpenAI(String question) async {
+  Future<void> sendToOpenRouter(String question) async {
     setState(() {
       _isLoading = true;
       _messages.add(ChatMessage(text: question, isUser: true));
@@ -757,7 +753,7 @@ class _SemarAIChatState extends State<SemarAIChat> {
       _scrollToBottom();
     });
 
-    final url = Uri.parse("https://api.openai.com/v1/chat/completions");
+    final url = Uri.parse("https://api.openrouter.ai/v1/completions");
 
     try {
       final response = await http
@@ -765,16 +761,12 @@ class _SemarAIChatState extends State<SemarAIChat> {
             url,
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': 'Bearer $openAIKey',
+              'Authorization': 'Bearer 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',
             },
             body: jsonEncode({
-              "model": "gpt-3.5-turbo",
+              "model": "gpt-3.5-turbo", // Pastikan OpenRouter mendukung model yang sama
               "messages": [
-                {
-                  "role": "system",
-                  "content":
-                      "Kamu adalah Semar AI, asisten lokal untuk informasi seputar kota Semarang."
-                },
+                {"role": "system", "content": "Kamu adalah Semar AI, asisten lokal untuk informasi seputar kota Semarang."},
                 {"role": "user", "content": question},
               ],
               "temperature": 0.7,
@@ -782,13 +774,11 @@ class _SemarAIChatState extends State<SemarAIChat> {
             }),
           )
           .timeout(Duration(seconds: 15), onTimeout: () {
-        throw TimeoutException("Permintaan ke OpenAI terlalu lama.");
-      });
+            throw TimeoutException("Permintaan ke OpenRouter terlalu lama.");
+          });
 
       if (response.statusCode == 200) {
-        final replyText =
-            (jsonDecode(response.body)['choices'][0]['message']['content'])
-                .trim();
+        final replyText = (jsonDecode(response.body)['choices'][0]['message']['content']).trim();
         setState(() {
           _messages.removeLast();
           _messages.add(ChatMessage(text: replyText, isUser: false));
@@ -796,8 +786,7 @@ class _SemarAIChatState extends State<SemarAIChat> {
           _scrollToBottom();
         });
       } else {
-        throw Exception(
-            "Gagal menjawab: ${response.statusCode} - ${response.body}");
+        throw Exception("Gagal menjawab: ${response.statusCode} - ${response.body}");
       }
     } catch (e) {
       setState(() {
@@ -910,12 +899,6 @@ class _SemarAIChatState extends State<SemarAIChat> {
                         border: InputBorder.none,
                         contentPadding: EdgeInsets.symmetric(horizontal: 16),
                       ),
-                      onSubmitted: (value) {
-                        if (!_isLoading && value.trim().isNotEmpty) {
-                          sendToOpenAI(value.trim());
-                          _controller.clear();
-                        }
-                      },
                     ),
                   ),
                 ),
@@ -926,15 +909,13 @@ class _SemarAIChatState extends State<SemarAIChat> {
                   color: Color(0xFF275E76),
                   child: IconButton(
                     icon: Icon(Icons.send, color: Colors.white),
-                    onPressed: _isLoading
-                        ? null
-                        : () {
-                            final text = _controller.text.trim();
-                            if (text.isNotEmpty) {
-                              sendToOpenAI(text);
-                              _controller.clear();
-                            }
-                          },
+                    onPressed: _isLoading ? null : () {
+                      final text = _controller.text.trim();
+                      if (text.isNotEmpty) {
+                        sendToOpenRouter(text);
+                        _controller.clear();
+                      }
+                    },
                   ),
                 ),
               ],
