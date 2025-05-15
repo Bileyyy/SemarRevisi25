@@ -3,7 +3,14 @@ import 'package:semar/widgets/custom_navbar.dart';
 import 'package:semar/widgets/navbar.dart';
 import 'package:semar/screens/detail_informasi.dart'; // Import halaman detail
 
-class DestinasiScreen extends StatelessWidget {
+class DestinasiScreen extends StatefulWidget {
+  @override
+  _DestinasiScreenState createState() => _DestinasiScreenState();
+}
+
+class _DestinasiScreenState extends State<DestinasiScreen> {
+  TextEditingController _searchController = TextEditingController();
+
   final List<Map<String, String>> destinasiList = [
     {"title": "Simpang Lima", "image": "assets/bg/slima.png"},
     {"title": "Pagoda Avalokitesvara", "image": "assets/bg/pagoda.png"},
@@ -14,6 +21,31 @@ class DestinasiScreen extends StatelessWidget {
     {"title": "Gereja Blenduk", "image": "assets/bg/gerejab.png"},
     {"title": "Brown Canyon", "image": "assets/bg/broca.png"},
   ];
+
+  List<Map<String, String>> filteredList = [];
+
+  @override
+  void initState() {
+    super.initState();
+    filteredList = destinasiList;
+    _searchController.addListener(_filterDestinasi);
+  }
+
+  void _filterDestinasi() {
+    String query = _searchController.text.toLowerCase();
+    setState(() {
+      filteredList = destinasiList.where((destinasi) {
+        final title = destinasi['title']!.toLowerCase();
+        return title.contains(query);
+      }).toList();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,6 +96,7 @@ class DestinasiScreen extends StatelessWidget {
                       ],
                     ),
                     child: TextField(
+                      controller: _searchController,
                       decoration: InputDecoration(
                         hintText: "Cari di sini",
                         hintStyle: TextStyle(fontFamily: 'Poppins'),
@@ -91,7 +124,7 @@ class DestinasiScreen extends StatelessWidget {
                   SizedBox(height: 10),
                   Expanded(
                     child: GridView.builder(
-                      itemCount: destinasiList.length,
+                      itemCount: filteredList.length,
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
                         mainAxisSpacing: 16,
@@ -99,8 +132,8 @@ class DestinasiScreen extends StatelessWidget {
                         childAspectRatio: 0.85,
                       ),
                       itemBuilder: (context, index) {
-                        String title = destinasiList[index]['title']!;
-                        String image = destinasiList[index]['image']!;
+                        String title = filteredList[index]['title']!;
+                        String image = filteredList[index]['image']!;
                         return GestureDetector(
                           onTap: () {
                             if (title == "Simpang Lima") {

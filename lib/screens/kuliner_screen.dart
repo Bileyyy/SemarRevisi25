@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:semar/widgets/custom_navbar.dart';
 import 'package:semar/widgets/navbar.dart';
 
-class KulinerScreen extends StatelessWidget {
+class KulinerScreen extends StatefulWidget {
+  @override
+  _KulinerScreenState createState() => _KulinerScreenState();
+}
+
+class _KulinerScreenState extends State<KulinerScreen> {
   final List<Map<String, String>> kulinerList = [
     {"title": "Lumpia Semarang", "image": "assets/bg/lump.png"},
     {"title": "Wingko Babat", "image": "assets/bg/wibat.png"},
@@ -13,9 +18,17 @@ class KulinerScreen extends StatelessWidget {
     {"title": "Mie Kopyok", "image": "assets/bg/mikopyok.png"},
   ];
 
+  String searchText = "";
+
   @override
   Widget build(BuildContext context) {
     final double screenHeight = MediaQuery.of(context).size.height;
+
+    final List<Map<String, String>> filteredList = kulinerList
+        .where((kuliner) => kuliner['title']!
+            .toLowerCase()
+            .contains(searchText.toLowerCase()))
+        .toList();
 
     return Scaffold(
       extendBody: true,
@@ -59,7 +72,7 @@ class KulinerScreen extends StatelessWidget {
                     padding: EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(30), // Diubah ke 30 untuk konsistensi
+                      borderRadius: BorderRadius.circular(30),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.1),
@@ -70,6 +83,11 @@ class KulinerScreen extends StatelessWidget {
                       ],
                     ),
                     child: TextField(
+                      onChanged: (value) {
+                        setState(() {
+                          searchText = value;
+                        });
+                      },
                       decoration: InputDecoration(
                         hintText: "Cari di sini",
                         hintStyle: TextStyle(fontFamily: 'Poppins'),
@@ -101,7 +119,7 @@ class KulinerScreen extends StatelessWidget {
                   // Grid kuliner (scrollable)
                   Expanded(
                     child: GridView.builder(
-                      itemCount: kulinerList.length,
+                      itemCount: filteredList.length,
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: 2,
                         mainAxisSpacing: 16,
@@ -110,8 +128,8 @@ class KulinerScreen extends StatelessWidget {
                       ),
                       itemBuilder: (context, index) {
                         return _buildKulinerItem(
-                          kulinerList[index]['title']!,
-                          kulinerList[index]['image']!,
+                          filteredList[index]['title']!,
+                          filteredList[index]['image']!,
                         );
                       },
                     ),
