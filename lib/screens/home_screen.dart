@@ -737,7 +737,7 @@ class _SemarAIChatState extends State<SemarAIChat> {
   final ScrollController _scrollController = ScrollController();
 
   // Ganti dengan API Key OpenAI kamu
-  static const String openAIKey = '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';
+  static const String openAIKey = 'YOUR_OPENAI_API_KEY_HERE';
 
   @override
   void initState() {
