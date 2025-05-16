@@ -4,10 +4,11 @@ import 'dart:convert';
 import 'package:semar/screens/kuliner_screen.dart';
 import 'package:semar/screens/layanan_screnn.dart';
 import 'package:semar/screens/sejarah_screen.dart';
-import 'package:semar/screens/disukai_screen.dart';
+import 'package:semar/screens/bencana_cuaca_screen.dart';
 import 'package:semar/screens/destinasi_screen.dart';
 import 'package:semar/screens/callcenter_screen.dart';
 import 'dart:async';
+import 'package:google_generative_ai/google_generative_ai.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -218,7 +219,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             _buildMenuButton(context, "Destinasi", Icons.map, DestinasiScreen()),
             _buildMenuButton(context, "Tempat Bersejarah", Icons.map_outlined, SejarahScreen()),
-            _buildMenuButton(context, "Cuaca", Icons.cloud, DisukaiScreen()),
+            _buildMenuButton(context, "Bencana & Cuaca", Icons.cloud, BencanaCuacaScreen()),
             _buildMenuButton(context, "Kuliner", Icons.restaurant, KulinerScreen()),
             _buildMenuButton(context, "Layanan Publik", Icons.help_outline, LayananScreen()),
             _buildMenuButton(context, "Call Center", Icons.phone, CallCenterScreen()),
@@ -736,6 +737,8 @@ class _SemarAIChatState extends State<SemarAIChat> {
   bool _isLoading = false;
   final ScrollController _scrollController = ScrollController();
 
+  static const String _apiKey = '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';
+
   @override
   void initState() {
     super.initState();
@@ -753,48 +756,43 @@ class _SemarAIChatState extends State<SemarAIChat> {
       _scrollToBottom();
     });
 
-    final url = Uri.parse("https://api.openrouter.ai/v1/completions");
+    final url = Uri.parse("https://openrouter.ai/api/v1/chat/completions");
+
+    final headers = {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer $_apiKey",
+      "HTTP-Referer": "https://yourapp.example.com", // Ganti dengan URL aplikasi Anda
+      "X-Title": "SemarAI Chat",
+    };
+
+    final body = jsonEncode({
+      "model": "openai/gpt-3.5-turbo", // Anda bisa ubah jadi claude-3 atau mixtral
+      "messages": [
+        {"role": "system", "content": "Kamu adalah asisten ramah yang memberikan informasi tentang kota Semarang."},
+        {"role": "user", "content": question}
+      ]
+    });
 
     try {
-      final response = await http
-          .post(
-            url,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer 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',
-            },
-            body: jsonEncode({
-              "model": "gpt-3.5-turbo", // Pastikan OpenRouter mendukung model yang sama
-              "messages": [
-                {"role": "system", "content": "Kamu adalah Semar AI, asisten lokal untuk informasi seputar kota Semarang."},
-                {"role": "user", "content": question},
-              ],
-              "temperature": 0.7,
-              "max_tokens": 500,
-            }),
-          )
-          .timeout(Duration(seconds: 15), onTimeout: () {
-            throw TimeoutException("Permintaan ke OpenRouter terlalu lama.");
-          });
+      final response = await http.post(url, headers: headers, body: body);
 
       if (response.statusCode == 200) {
-        final replyText = (jsonDecode(response.body)['choices'][0]['message']['content']).trim();
+        final data = json.decode(response.body);
+        final reply = data['choices'][0]['message']['content'];
+
         setState(() {
-          _messages.removeLast();
-          _messages.add(ChatMessage(text: replyText, isUser: false));
+          _messages.removeLast(); // hapus loading
+          _messages.add(ChatMessage(text: reply.trim(), isUser: false));
           _isLoading = false;
           _scrollToBottom();
         });
       } else {
-        throw Exception("Gagal menjawab: ${response.statusCode} - ${response.body}");
+        throw Exception('Gagal: ${response.statusCode} ${response.body}');
       }
     } catch (e) {
       setState(() {
         _messages.removeLast();
-        _messages.add(ChatMessage(
-          text: "Maaf, terjadi kesalahan saat menghubungi Semar AI. Coba lagi nanti.",
-          isUser: false,
-        ));
+        _messages.add(ChatMessage(text: "Terjadi kesalahan: ${e.toString()}", isUser: false));
         _isLoading = false;
         _scrollToBottom();
       });
@@ -837,6 +835,7 @@ class _SemarAIChatState extends State<SemarAIChat> {
       ),
       child: Column(
         children: [
+          // Header
           Container(
             padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -847,7 +846,7 @@ class _SemarAIChatState extends State<SemarAIChat> {
               children: [
                 CircleAvatar(
                   backgroundColor: Colors.white,
-                  child: Icon(Icons.chat, color: Color(0xFF275E76), size: 24),
+                  child: Icon(Icons.chat, color: Color(0xFF275E76)),
                 ),
                 SizedBox(width: 12),
                 Text(
@@ -866,6 +865,8 @@ class _SemarAIChatState extends State<SemarAIChat> {
               ],
             ),
           ),
+
+          // Message List
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -878,6 +879,8 @@ class _SemarAIChatState extends State<SemarAIChat> {
               },
             ),
           ),
+
+          // Input Area
           Container(
             padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
             decoration: BoxDecoration(
@@ -894,6 +897,13 @@ class _SemarAIChatState extends State<SemarAIChat> {
                     ),
                     child: TextField(
                       controller: _controller,
+                      onSubmitted: (value) {
+                        final text = value.trim();
+                        if (text.isNotEmpty && !_isLoading) {
+                          sendToOpenRouter(text);
+                          _controller.clear();
+                        }
+                      },
                       decoration: InputDecoration(
                         hintText: 'Tanyakan tentang Semarang...',
                         border: InputBorder.none,
@@ -909,13 +919,15 @@ class _SemarAIChatState extends State<SemarAIChat> {
                   color: Color(0xFF275E76),
                   child: IconButton(
                     icon: Icon(Icons.send, color: Colors.white),
-                    onPressed: _isLoading ? null : () {
-                      final text = _controller.text.trim();
-                      if (text.isNotEmpty) {
-                        sendToOpenRouter(text);
-                        _controller.clear();
-                      }
-                    },
+                    onPressed: _isLoading
+                        ? null
+                        : () {
+                            final text = _controller.text.trim();
+                            if (text.isNotEmpty) {
+                              sendToOpenRouter(text);
+                              _controller.clear();
+                            }
+                          },
                   ),
                 ),
               ],
@@ -989,6 +1001,8 @@ class _SemarAIChatState extends State<SemarAIChat> {
                 message.text,
                 style: TextStyle(
                   color: message.isUser ? Colors.white : Colors.black87,
+                  fontSize: 14,
+                  height: 1.5,
                 ),
               ),
             ),

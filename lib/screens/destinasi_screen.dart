@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:semar/widgets/custom_navbar.dart';
 import 'package:semar/widgets/navbar.dart';
-import 'package:semar/screens/detail_informasi.dart'; // Import halaman detail
+import 'detail_informasi.dart';
 
 class DestinasiScreen extends StatefulWidget {
   @override
@@ -9,47 +9,60 @@ class DestinasiScreen extends StatefulWidget {
 }
 
 class _DestinasiScreenState extends State<DestinasiScreen> {
-  TextEditingController _searchController = TextEditingController();
-
   final List<Map<String, String>> destinasiList = [
-    {"title": "Simpang Lima", "image": "assets/bg/slima.png"},
-    {"title": "Pagoda Avalokitesvara", "image": "assets/bg/pagoda.png"},
-    {"title": "Kota Lama", "image": "assets/bg/kotlam.png"},
-    {"title": "Masjid Agung", "image": "assets/bg/magung.png"},
-    {"title": "Candi Gedong Songo", "image": "assets/bg/candisong.png"},
-    {"title": "Lawang Sewu", "image": "assets/bg/lw1000.png"},
-    {"title": "Gereja Blenduk", "image": "assets/bg/gerejab.png"},
-    {"title": "Brown Canyon", "image": "assets/bg/broca.png"},
+    {
+      "title": "Simpang Lima",
+      "image": "assets/bg/slima.png",
+      "description": "Pusat keramaian kota Semarang, tempat favorit untuk bersantai."
+    },
+    {
+      "title": "Pagoda Avalokitesvara",
+      "image": "assets/bg/pagoda.png",
+      "description": "Pagoda tertinggi di Indonesia dengan arsitektur khas Tionghoa."
+    },
+    {
+      "title": "Kota Lama",
+      "image": "assets/bg/kotlam.png",
+      "description": "Daerah bersejarah dengan bangunan kolonial Belanda."
+    },
+    {
+      "title": "Masjid Agung",
+      "image": "assets/bg/magung.png",
+      "description": "Masjid besar dengan arsitektur modern dan payung raksasa otomatis."
+    },
+    {
+      "title": "Candi Gedong Songo",
+      "image": "assets/bg/candisong.png",
+      "description": "Kompleks candi Hindu yang terletak di lereng Gunung Ungaran."
+    },
+    {
+      "title": "Lawang Sewu",
+      "image": "assets/bg/lw1000.png",
+      "description": "Gedung bersejarah yang terkenal dengan sebutan 'Seribu Pintu'."
+    },
+    {
+      "title": "Gereja Blenduk",
+      "image": "assets/bg/gerejab.png",
+      "description": "Gereja tua dengan kubah khas di kawasan Kota Lama."
+    },
+    {
+      "title": "Brown Canyon",
+      "image": "assets/bg/broca.png",
+      "description": "Bekas tambang yang mirip Grand Canyon, cocok untuk fotografi."
+    },
   ];
 
-  List<Map<String, String>> filteredList = [];
-
-  @override
-  void initState() {
-    super.initState();
-    filteredList = destinasiList;
-    _searchController.addListener(_filterDestinasi);
-  }
-
-  void _filterDestinasi() {
-    String query = _searchController.text.toLowerCase();
-    setState(() {
-      filteredList = destinasiList.where((destinasi) {
-        final title = destinasi['title']!.toLowerCase();
-        return title.contains(query);
-      }).toList();
-    });
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
+  String searchText = "";
 
   @override
   Widget build(BuildContext context) {
     final double screenHeight = MediaQuery.of(context).size.height;
+
+    final List<Map<String, String>> filteredList = destinasiList
+        .where((destinasi) => destinasi['title']!
+            .toLowerCase()
+            .contains(searchText.toLowerCase()))
+        .toList();
 
     return Scaffold(
       extendBody: true,
@@ -96,7 +109,7 @@ class _DestinasiScreenState extends State<DestinasiScreen> {
                       ],
                     ),
                     child: TextField(
-                      controller: _searchController,
+                      onChanged: (value) => setState(() => searchText = value),
                       decoration: InputDecoration(
                         hintText: "Cari di sini",
                         hintStyle: TextStyle(fontFamily: 'Poppins'),
@@ -132,21 +145,10 @@ class _DestinasiScreenState extends State<DestinasiScreen> {
                         childAspectRatio: 0.85,
                       ),
                       itemBuilder: (context, index) {
-                        String title = filteredList[index]['title']!;
-                        String image = filteredList[index]['image']!;
-                        return GestureDetector(
-                          onTap: () {
-                            if (title == "Simpang Lima") {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => DetailInformasi(),
-                                ),
-                              );
-                            }
-                            // Tambah destinasi lain sesuai kebutuhan
-                          },
-                          child: _buildDestinasiItem(title, image),
+                        return _buildDestinasiItem(
+                          filteredList[index]['title']!,
+                          filteredList[index]['image']!,
+                          filteredList[index]['description']!,
                         );
                       },
                     ),
@@ -171,47 +173,58 @@ class _DestinasiScreenState extends State<DestinasiScreen> {
     );
   }
 
-  Widget _buildDestinasiItem(String title, String imagePath) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.asset(
-            imagePath,
-            fit: BoxFit.cover,
-          ),
-          Container(
-            alignment: Alignment.bottomCenter,
-            padding: EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  Colors.black.withOpacity(0.7),
-                ],
-              ),
-            ),
-            child: Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-                shadows: [
-                  Shadow(
-                    color: Colors.black.withOpacity(0.8),
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
+  Widget _buildDestinasiItem(String title, String imagePath, String description) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DetailInformasi(
+              title: title,
+              description: description,
+              image: imagePath,
             ),
           ),
-        ],
+        );
+      },
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Image.asset(imagePath, fit: BoxFit.cover),
+            Container(
+              alignment: Alignment.bottomCenter,
+              padding: EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withOpacity(0.7),
+                  ],
+                ),
+              ),
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black.withOpacity(0.8),
+                      blurRadius: 10,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
