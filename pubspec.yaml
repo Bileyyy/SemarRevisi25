@@ -40,6 +40,7 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   http: ^1.4.0
+  geolocator: ^14.0.0
 
 dev_dependencies:
   flutter_test:
@@ -90,6 +91,18 @@ flutter:
     - assets/bg/ogoh.jpg
     - assets/bg/wayang.jpg
     - assets/bg/lawubaru.jpg
+    - assets/bg/kebugaran.png
+    - assets/bg/museum.png
+    - assets/bg/pemerintah.png
+    - assets/bg/rusa.png
+    - assets/bg/tepengi.png
+    - assets/bg/kpelangi.jpg
+    - assets/bg/sar.png
+    - assets/bg/polisije.jpg
+    - assets/bg/pmise.jpg
+    - assets/bg/damkar.png
+    - assets/bg/ambulance.png
+    - assets/bg/tugmud.jpg
 
 
   # The following line ensures that the Material Icons font is

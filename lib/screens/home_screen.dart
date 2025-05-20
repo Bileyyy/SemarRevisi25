@@ -8,7 +8,8 @@ import 'package:semar/screens/bencana_cuaca_screen.dart';
 import 'package:semar/screens/destinasi_screen.dart';
 import 'package:semar/screens/callcenter_screen.dart';
 import 'dart:async';
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:geolocator/geolocator.dart';
+import 'dart:math';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -17,14 +18,18 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   List<NearbyPlace> nearbyPlaces = [];
+  List<NearbyPlace> allPlaces = [];
   bool _isLoading = false;
+  Position? _currentPosition;
+  bool _locationError = false;
+
   List<NewsEvent> newsEvents = [
     NewsEvent(
       title: "Semarang Night Carnival 2025",
       imagePath: "assets/bg/snc.jpg",
       date: "4 Mei 2025",
       location: "Titik 0KM - Balaikota",
-      description: "Semarang Night Carnival (SNC) adalah karnaval malam tahunan untuk merayakan HUT Kota Semarang, menampilkan parade kostum, seni budaya, dan hiburan, serta bertujuan mempromosikan budaya dan pariwisata.",
+      description: "Semarang Night Carnival (SNC) adalah karnaval malam tahunan untuk merayakan HUT Kota Semarang, menampilkan parade kostum, seni budaya, dan hiburan, serta bertujuan mempromosikan budaya dan pariwisata.",
     ),
     NewsEvent(
       title: "Dugderan",
@@ -38,31 +43,150 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeSamplePlaces();
+    _initializePlaces();
+    _getCurrentLocation();
   }
 
-  void _initializeSamplePlaces() {
+  void _initializePlaces() {
+    allPlaces = [
+      NearbyPlace(
+        name: "Lawang Sewu",
+        imagePath: "assets/bg/lawang1000.png",
+        rating: 4.7,
+        latitude: -6.983333,
+        longitude: 110.409722,
+      ),
+      NearbyPlace(
+        name: "Kota Lama",
+        imagePath: "assets/bg/kotlam.png",
+        rating: 4.5,
+        latitude: -6.9675,
+        longitude: 110.4256,
+      ),
+      NearbyPlace(
+        name: "Museum Ronggowarsito",
+        imagePath: "assets/bg/muser.png",
+        rating: 4.3,
+        latitude: -7.0056,
+        longitude: 110.4389,
+      ),
+      NearbyPlace(
+        name: "Sam Poo Kong",
+        imagePath: "assets/bg/sampookong.jpg",
+        rating: 4.6,
+        latitude: -7.0139,
+        longitude: 110.4414,
+      ),
+      NearbyPlace(
+        name: "Pagoda Avalokitesvara",
+        imagePath: "assets/bg/pagoda.png",
+        rating: 4.4,
+        latitude: -7.0865,
+        longitude: 110.4183,
+      ),
+      NearbyPlace(
+        name: "Tugu Muda",
+        imagePath: "assets/bg/tugmud.jpg",
+        rating: 4.2,
+        latitude: -6.9825,
+        longitude: 110.4086,
+      ),
+      NearbyPlace(
+        name: "Masjid Agung Jawa Tengah",
+        imagePath: "assets/bg/majt.png",
+        rating: 4.8,
+        latitude: -7.0058,
+        longitude: 110.4411,
+      ),
+      NearbyPlace(
+        name: "Kampung Pelangi",
+        imagePath: "assets/bg/kpelangi.jpg",
+        rating: 4.1,
+        latitude: -6.9892,
+        longitude: 110.4228,
+      ),
+    ];
+  }
+
+  Future<void> _getCurrentLocation() async {
     setState(() {
-      nearbyPlaces = [
-        NearbyPlace(
-          name: "Lawang Sewu",
-          imagePath: "assets/bg/lawang1000.png",
-          distance: 1.2,
-          rating: 4.7,
-        ),
-        NearbyPlace(
-          name: "Kota Lama",
-          imagePath: "assets/bg/kotlam.png",
-          distance: 2.5,
-          rating: 4.5,
-        ),
-        NearbyPlace(
-          name: "Museum Ronggowarsito",
-          imagePath: "assets/bg/muser.png",
-          distance: 3.8,
-          rating: 4.3,
-        ),
-      ];
+      _isLoading = true;
+      _locationError = false;
+    });
+
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        throw Exception('Layanan lokasi tidak aktif');
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          throw Exception('Izin lokasi ditolak');
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        throw Exception('Izin lokasi ditolak permanen');
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.best,
+      );
+
+      setState(() {
+        _currentPosition = position;
+      });
+
+      _refreshRecommendations();
+    } catch (e) {
+      print("Error getting location: $e");
+      setState(() {
+        _locationError = true;
+        nearbyPlaces = allPlaces.take(3).map((place) => place.copyWith(distance: null)).toList();
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  double _calculateDistance(double startLat, double startLng, double endLat, double endLng) {
+    const double earthRadius = 6371;
+    double dLat = _toRadians(endLat - startLat);
+    double dLng = _toRadians(endLng - startLng);
+
+    double a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(_toRadians(startLat)) * cos(_toRadians(endLat)) *
+        sin(dLng / 2) * sin(dLng / 2);
+    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
+
+    return earthRadius * c;
+  }
+
+  double _toRadians(double degree) => degree * pi / 180;
+
+  void _refreshRecommendations() {
+    if (_currentPosition == null) return;
+
+    setState(() => _isLoading = true);
+
+    List<NearbyPlace> sortedPlaces = allPlaces.map((place) {
+      double distance = _calculateDistance(
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+        place.latitude,
+        place.longitude,
+      );
+      return place.copyWith(distance: distance);
+    }).toList()
+      ..sort((a, b) => a.distance!.compareTo(b.distance!));
+
+    setState(() {
+      nearbyPlaces = sortedPlaces.take(3).toList();
       _isLoading = false;
     });
   }
@@ -176,13 +300,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 fontSize: 22,
                 fontWeight: FontWeight.w500,
                 color: Color(0xFF275E76),
-                shadows: [
-                  Shadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
-                  ),
-                ],
               ),
             ),
           ),
@@ -350,19 +467,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 IconButton(
                   icon: Icon(Icons.refresh, color: Color(0xFF275E76)),
-                  onPressed: () {
-                    setState(() {
-                      _isLoading = true;
-                    });
-                    Future.delayed(Duration(seconds: 1), () {
-                      setState(() {
-                        _isLoading = false;
-                      });
-                    });
-                  },
+                  onPressed: _getCurrentLocation,
                 ),
               ],
             ),
+            if (_locationError)
+              Padding(
+                padding: EdgeInsets.only(bottom: 8),
+                child: Text(
+                  "Tidak dapat mengakses lokasi. Menampilkan rekomendasi umum",
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 12,
+                    color: Colors.red,
+                  ),
+                ),
+              ),
             SizedBox(height: 12),
             if (_isLoading)
               Center(
@@ -381,30 +501,169 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
- Widget _buildPlaceItem(NearbyPlace place) {
-  return InkWell(
-    onTap: () {},
+  Widget _buildPlaceItem(NearbyPlace place) {
+    return InkWell(
+      onTap: () {},
+      child: Container(
+        margin: EdgeInsets.only(bottom: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.asset(
+                place.imagePath,
+                width: 80,
+                height: 80,
+                fit: BoxFit.cover,
+              ),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    place.name,
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF275E76),
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(Icons.star, color: Colors.amber, size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        place.rating.toString(),
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Icon(Icons.location_on, size: 16, color: Colors.red),
+                      SizedBox(width: 4),
+                      Text(
+                        place.distance != null 
+                          ? "${place.distance!.toStringAsFixed(1)} km" 
+                          : "-",
+                        style: TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 8),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Color(0xFF7EB7D9).withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      "Lihat Detail",
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontSize: 10,
+                        color: Color(0xFF275E76),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+Widget _buildNewsEventsSection() {
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
     child: Container(
-      margin: EdgeInsets.only(bottom: 12),
-      child: Row(
+      width: 340,
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.5),
+            spreadRadius: 2,
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Event",
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF275E76),
+            ),
+          ),
+          SizedBox(height: 12),
+          Column(
+            children: newsEvents
+                .map((event) => _buildNewsEventCard(context, event))
+                .toList(),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+
+Widget _buildNewsEventCard(BuildContext context, NewsEvent event) {
+  return InkWell(
+    onTap: () => _showNewsDetail(context, event),
+    child: Container(
+      margin: EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 5,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
             child: Image.asset(
-              place.imagePath,
-              width: 80,
-              height: 80,
+              event.imagePath,
+              width: double.infinity,
+              height: 120,
               fit: BoxFit.cover,
             ),
           ),
-          SizedBox(width: 12),
-          Expanded(
+          Padding(
+            padding: EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  place.name,
+                  event.title,
                   style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 14,
@@ -412,13 +671,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: Color(0xFF275E76),
                   ),
                 ),
-                SizedBox(height: 4),
+                SizedBox(height: 6),
                 Row(
                   children: [
-                    Icon(Icons.star, color: Colors.amber, size: 16),
+                    Icon(Icons.calendar_today, size: 14, color: Colors.grey),
                     SizedBox(width: 4),
                     Text(
-                      place.rating.toString(),
+                      event.date,
                       style: TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 12,
@@ -426,10 +685,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     SizedBox(width: 12),
-                    Icon(Icons.location_on, size: 16, color: Colors.red),
+                    Icon(Icons.location_on, size: 14, color: Colors.grey),
                     SizedBox(width: 4),
                     Text(
-                      "${place.distance.toStringAsFixed(1)} km",
+                      event.location,
                       style: TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 12,
@@ -437,22 +696,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ],
-                ),
-                SizedBox(height: 8),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Color(0xFF7EB7D9).withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    "Lihat Detail",
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 10,
-                      color: Color(0xFF275E76),
-                    ),
-                  ),
                 ),
               ],
             ),
@@ -463,250 +706,148 @@ class _HomeScreenState extends State<HomeScreen> {
   );
 }
 
-  Widget _buildNewsEventsSection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: Container(
-        width: 340,
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.5),
-              spreadRadius: 2,
-              blurRadius: 10,
-              offset: Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Event",
-              style: TextStyle(
-                fontFamily: 'Poppins',
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF275E76)),
-            ),
-            SizedBox(height: 12),
-            Column(
-              children: newsEvents
-                  .map((event) => _buildNewsEventCard(context, event))
-                  .toList(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
-  Widget _buildNewsEventCard(BuildContext context, NewsEvent event) {
-    return InkWell(
-      onTap: () => _showNewsDetail(context, event),
-      child: Container(
-        margin: EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              spreadRadius: 1,
-              blurRadius: 5,
-              offset: Offset(0, 2),
-            ),
-          ],
-        ),
+void _showNewsDetail(BuildContext context, NewsEvent event) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (context) => Container(
+      height: MediaQuery.of(context).size.height * 0.8,
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
             ClipRRect(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius: BorderRadius.circular(12),
               child: Image.asset(
                 event.imagePath,
                 width: double.infinity,
-                height: 120,
+                height: 200,
                 fit: BoxFit.cover,
               ),
             ),
-            Padding(
-              padding: EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    event.title,
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF275E76)),
-                  ),
-                  SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Icon(Icons.calendar_today, size: 14, color: Colors.grey),
-                      SizedBox(width: 4),
-                      Text(
-                        event.date,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 12,
-                          color: Colors.grey[600]),
-                      ),
-                      SizedBox(width: 12),
-                      Icon(Icons.location_on, size: 14, color: Colors.grey),
-                      SizedBox(width: 4),
-                      Text(
-                        event.location,
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 12,
-                          color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showNewsDetail(BuildContext context, NewsEvent event) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.8,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        padding: EdgeInsets.all(16),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.asset(
-                  event.imagePath,
-                  width: double.infinity,
-                  height: 200,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              SizedBox(height: 16),
-              Text(
-                event.title,
-                style: TextStyle(
+            SizedBox(height: 16),
+            Text(
+              event.title,
+              style: TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF275E76)),
-              ),
-              SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-                  SizedBox(width: 4),
-                  Text(
-                    event.date,
-                    style: TextStyle(
+            ),
+            SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                SizedBox(width: 4),
+                Text(
+                  event.date,
+                  style: TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 14,
                       color: Colors.grey[600]),
-                  ),
-                  SizedBox(width: 16),
-                  Icon(Icons.location_on, size: 16, color: Colors.grey),
-                  SizedBox(width: 4),
-                  Text(
-                    event.location,
-                    style: TextStyle(
+                ),
+                SizedBox(width: 16),
+                Icon(Icons.location_on, size: 16, color: Colors.grey),
+                SizedBox(width: 4),
+                Text(
+                  event.location,
+                  style: TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 14,
                       color: Colors.grey[600]),
-                  ),
-                ],
-              ),
-              SizedBox(height: 16),
-              Text(
-                "Deskripsi",
-                style: TextStyle(
+                ),
+              ],
+            ),
+            SizedBox(height: 16),
+            Text(
+              "Deskripsi",
+              style: TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: Color(0xFF275E76)),
-              ),
-              SizedBox(height: 8),
-              Text(
-                event.description,
-                style: TextStyle(
+            ),
+            SizedBox(height: 8),
+            Text(
+              event.description,
+              style: TextStyle(
                   fontFamily: 'Poppins',
                   fontSize: 14,
                   color: Colors.grey[800]),
-              ),
-              SizedBox(height: 20),
-              Container(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF275E76),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    padding: EdgeInsets.symmetric(vertical: 12),
+            ),
+            SizedBox(height: 20),
+            Container(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Color(0xFF275E76),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(
-                    "Tutup",
-                    style: TextStyle(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                ),
+                onPressed: () => Navigator.pop(context),
+                child: Text(
+                  "Tutup",
+                  style: TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       color: Colors.white),
-                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class NearbyPlace {
   final String name;
   final String imagePath;
-  final double distance;
   final double rating;
+  final double latitude;
+  final double longitude;
+  final double? distance;
 
   NearbyPlace({
     required this.name,
     required this.imagePath,
-    required this.distance,
     required this.rating,
+    required this.latitude,
+    required this.longitude,
+    this.distance,
   });
+
+  NearbyPlace copyWith({double? distance}) => NearbyPlace(
+    name: name,
+    imagePath: imagePath,
+    rating: rating,
+    latitude: latitude,
+    longitude: longitude,
+    distance: distance ?? this.distance,
+  );
 }
 
 class NewsEvent {
@@ -725,7 +866,6 @@ class NewsEvent {
   });
 }
 
-
 class SemarAIChat extends StatefulWidget {
   @override
   _SemarAIChatState createState() => _SemarAIChatState();
@@ -737,7 +877,7 @@ class _SemarAIChatState extends State<SemarAIChat> {
   bool _isLoading = false;
   final ScrollController _scrollController = ScrollController();
 
-  static const String _apiKey = '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';
+  static const String _apiKey = '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';
 
   @override
   void initState() {
@@ -761,12 +901,12 @@ class _SemarAIChatState extends State<SemarAIChat> {
     final headers = {
       "Content-Type": "application/json",
       "Authorization": "Bearer $_apiKey",
-      "HTTP-Referer": "https://yourapp.example.com", // Ganti dengan URL aplikasi Anda
+      "HTTP-Referer": "https://yourapp.example.com",
       "X-Title": "SemarAI Chat",
     };
 
     final body = jsonEncode({
-      "model": "openai/gpt-3.5-turbo", // Anda bisa ubah jadi claude-3 atau mixtral
+      "model": "openai/gpt-3.5-turbo",
       "messages": [
         {"role": "system", "content": "Kamu adalah asisten ramah yang memberikan informasi tentang kota Semarang."},
         {"role": "user", "content": question}
@@ -781,7 +921,7 @@ class _SemarAIChatState extends State<SemarAIChat> {
         final reply = data['choices'][0]['message']['content'];
 
         setState(() {
-          _messages.removeLast(); // hapus loading
+          _messages.removeLast();
           _messages.add(ChatMessage(text: reply.trim(), isUser: false));
           _isLoading = false;
           _scrollToBottom();
@@ -835,7 +975,6 @@ class _SemarAIChatState extends State<SemarAIChat> {
       ),
       child: Column(
         children: [
-          // Header
           Container(
             padding: EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -865,8 +1004,6 @@ class _SemarAIChatState extends State<SemarAIChat> {
               ],
             ),
           ),
-
-          // Message List
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -879,8 +1016,6 @@ class _SemarAIChatState extends State<SemarAIChat> {
               },
             ),
           ),
-
-          // Input Area
           Container(
             padding: EdgeInsets.fromLTRB(16, 8, 16, 16),
             decoration: BoxDecoration(

@@ -42,12 +42,12 @@ class _DestinasiScreenState extends State<DestinasiScreen> {
     },
     {
       "title": "Gereja Blenduk",
-      "image": "assets/bg/gerejab.png",
+      "image": "assets/bg/broca.png",
       "description": "Gereja tua dengan kubah khas di kawasan Kota Lama."
     },
     {
       "title": "Brown Canyon",
-      "image": "assets/bg/broca.png",
+      "image": "assets/bg/gerjab.png",
       "description": "Bekas tambang yang mirip Grand Canyon, cocok untuk fotografi."
     },
   ];
