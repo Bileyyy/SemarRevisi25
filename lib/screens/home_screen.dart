@@ -72,7 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       NearbyPlace(
         name: "Sam Poo Kong",
-        imagePath: "assets/bg/sampookong.jpg",
+        imagePath: "assets/bg/sampo.png",
         rating: 4.6,
         latitude: -7.0139,
         longitude: 110.4414,

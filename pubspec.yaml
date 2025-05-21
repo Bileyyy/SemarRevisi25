@@ -103,6 +103,7 @@ flutter:
     - assets/bg/damkar.png
     - assets/bg/ambulance.png
     - assets/bg/tugmud.jpg
+    - assets/bg/sampo.png
 
 
   # The following line ensures that the Material Icons font is
